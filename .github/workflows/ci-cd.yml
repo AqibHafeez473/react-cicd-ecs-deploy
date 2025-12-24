@@ -85,11 +85,11 @@ jobs:
 
       # 4. Load Docker image
       - name: Load Docker image
-        run: docker load -i image.tar
-     
-      
-      - name: Retag image with SHA
+      # 4.5 Retag image with SHA
         run: |
+          docker load -i image.tar
+          IMAGE_TAG=$(cat image_tag.txt)
+          docker images
           docker tag react-ecs-app:$IMAGE_TAG ghcr.io/aqibhafeez473/react-ecs-app:$IMAGE_TAG
           docker tag react-ecs-app:latest ghcr.io/aqibhafeez473/react-ecs-app:latest
 
