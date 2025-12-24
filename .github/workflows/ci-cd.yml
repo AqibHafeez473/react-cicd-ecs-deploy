@@ -86,6 +86,9 @@ jobs:
       # 4. Load Docker image
       - name: Load Docker image
         run: docker load -i image.tar
+      - name: Set IMAGE_TAG variable
+        run: echo "IMAGE_TAG=$(cat image_tag.txt)" >> $GITHUB_ENV
+    
 
       # 5. Login to GHCR
       - name: Login to GHCR
