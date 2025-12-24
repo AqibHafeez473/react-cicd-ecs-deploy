@@ -1,4 +1,4 @@
-name: "CI/CD — Build → Dockerize → Push to AWS ECR → Deploy to ECS"
+name: "CI/CD — Build → Dockerize → Push to GHCR → Deploy to ECS"
 
 on:
   push:
@@ -20,9 +20,8 @@ env:
   CONTAINER_NAME: react-app
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,7 +45,7 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::8}  # first 8 chars of commit SHA
           docker build -t ghcr.io/aqibhafeez473/react-ecs-app:$IMAGE_TAG \
                        -t ghcr.io/aqibhafeez473/react-ecs-app:latest .
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "$IMAGE_TAG" > image_tag.txt   # save tag to file
 
       - name: Save Docker image as artifact
         run: docker save ghcr.io/aqibhafeez473/react-ecs-app:$IMAGE_TAG -o image.tar
@@ -57,24 +56,41 @@ jobs:
           name: docker-image
           path: image.tar
 
+      - name: Upload IMAGE_TAG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tag
+          path: image_tag.txt
 
-
-  push:
+  push-to-ghcr:
     name: Push Docker Image to GHCR
     runs-on: ubuntu-latest
-    needs: build-and-deploy
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
+      # 1. Download Docker image artifact
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image
 
+      # 2. Download IMAGE_TAG artifact
+      - name: Download IMAGE_TAG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+
+      # 3. Set IMAGE_TAG environment variable
+      - name: Set IMAGE_TAG variable
+        run: echo "IMAGE_TAG=$(cat image_tag.txt)" >> $GITHUB_ENV
+
+      # 4. Load Docker image
       - name: Load Docker image
         run: docker load -i image.tar
 
+      # 5. Login to GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -82,46 +98,10 @@ jobs:
           username: aqibhafeez473
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Push Docker image
+      # 6. Push Docker images
+      - name: Push Docker images
         run: |
           docker push ghcr.io/aqibhafeez473/react-ecs-app:$IMAGE_TAG
-          docker push ghcr.io/aqibhafeez473/react-ecs-app:latest   
+          docker push ghcr.io/aqibhafeez473/react-ecs-app:latest
 
-      # # # Configure AWS (OIDC)
-      # # - name: Configure AWS credentials
-      # #   uses: aws-actions/configure-aws-credentials@v4
-      # #   with:
-      # #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-      # #     aws-region: ${{ env.AWS_REGION }}
 
-      # # Login to Amazon ECR
-      # - name: Login to Amazon ECR
-      #   uses: aws-actions/amazon-ecr-login@v2
-
-      # # Build and push Docker image to ECR
-      # - name: Build and push Docker image to ECR
-      #   uses: docker/build-push-action@v4
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: |
-      #       ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-      #       ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-
-      # # Render ECS task definition with new image
-      # - name: Render Amazon ECS task definition
-      #   id: render-task
-      #   uses: aws-actions/amazon-ecs-render-task-definition@v1
-      #   with:
-      #     task-definition: ecs/task-def.json
-      #     container-name: ${{ env.CONTAINER_NAME }}
-      #     image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-
-      # # Deploy to ECS service
-      # - name: Deploy to Amazon ECS
-      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-      #   with:
-      #     task-definition: ${{ steps.render-task.outputs.task-definition }}
-      #     service: ${{ env.ECS_SERVICE }}
-      #     cluster: ${{ env.ECS_CLUSTER }}
-      #     wait-for-service-stability: true
