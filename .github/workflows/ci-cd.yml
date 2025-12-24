@@ -62,7 +62,7 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/AqibHafeez473/react-ecs-app:latest   
+          docker push ghcr.io/aqibhafeez473/react-ecs-app:latest   
 
       # # # Configure AWS (OIDC)
       # # - name: Configure AWS credentials
