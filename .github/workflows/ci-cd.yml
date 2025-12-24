@@ -43,7 +43,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/Aqibhafeez473/react-ecs-app:latest .
+          docker build -t ghcr.io/aqibhafeez473/react-ecs-app:latest .
   
   push:
     name: Push Docker Image to GHCR
