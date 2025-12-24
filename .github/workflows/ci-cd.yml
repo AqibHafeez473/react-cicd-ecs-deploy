@@ -86,9 +86,12 @@ jobs:
       # 4. Load Docker image
       - name: Load Docker image
         run: docker load -i image.tar
-      - name: Set IMAGE_TAG variable
-        run: echo "IMAGE_TAG=$(cat image_tag.txt)" >> $GITHUB_ENV
-    
+     
+      
+      - name: Retag image with SHA
+        run: |
+          docker tag react-ecs-app:$IMAGE_TAG ghcr.io/aqibhafeez473/react-ecs-app:$IMAGE_TAG
+          docker tag react-ecs-app:latest ghcr.io/aqibhafeez473/react-ecs-app:latest
 
       # 5. Login to GHCR
       - name: Login to GHCR
